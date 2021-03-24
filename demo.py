@@ -6,7 +6,7 @@ with AQWave('COM5') as aq:
     print("Recording Time started:", aq.get_recording_time())
     print("Is Recording?:", aq.is_recording())
 
-    N = 1000
+    N = 600
     data = list(aq.data(N))
     x = range(N)
 
@@ -15,7 +15,7 @@ with AQWave('COM5') as aq:
 
     pulse, ppg, unk2, hr, spo2 = zip(*data)
 
-    plt.figure(figsize=(8, 16))
+    plt.figure(figsize=(16, 8))
     fig, axes = plt.subplots(nrows=5, ncols=1, sharex=True)
     axes[0].plot(x, pulse)
     axes[0].set_ylabel('Pulse')

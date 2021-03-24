@@ -32,9 +32,9 @@ Device Specs
 * Based on TI MSP430F247
 * OLED Solomon Systech SSD1351U
 * 1.78Wh LiPo
-* Sampling Rate: ~10Hz
+* Sampling Rate: 1/60 per second
 * Recording Sampling Rate: ~1Hz
-* PPG Resolution: 8bit
+* PPG Resolution: 8bit (maybe only 4 bit?)
 * USB-Serial Interface: via CP210x
 * Bluetooth-Serial Interface: Device Name `SpO2`, Pairing Key `7762`
   The device in the AQWave is a  BF10-A by Shenzhen Lansefeiwu Technology Co., Ltd. ([FCC Information](https://fccid.io/N8DBF10-A)).
@@ -163,6 +163,47 @@ The original source code only uses (and defines) four commands:
 * `0xa9` - retrive device manufacturer (used to check if correct serial device is present)
 * `0xab` - retrieve device user ID
 
+
+Reading Data
+------------
+
+The device will spill out packages of data after being asked.
+I found that it will send about 1790 packages and then stops automatically.
+To still retrieve packages, there is a "keep alive" command.
+The original software issues this command every 60 packages, i.e., every second.
+
+The original software only uses three of the five data fields: PPG, heart rate and SpO2.
+However, there is also a field which can be used for pulse detection and a second PPG
+signal, which looks like a downscaled version of the first one.
+
+Reading Recorded Data
+---------------------
+
+During a recording, the device will answer commands as unknown. However, if the recording
+is stopped on the device, the device will answer with all packages of recorded data.
+Each package is 8 bytes long and contains three tuple of heart rate and SpO2 measurements.
+Each tuple corresponds to a second.
+
+You can ask the device how many values (not tuples!) it has stored and thus calculate the number of bytes
+to read.
+
+On the device, you can also set the time when the recorded started. The idea here is,
+that the patient will set the time, record the data and then go to the PC and retrieve the sample.
+In order to know when the recording has started, you set the time manually.
+
+According to the manual, the device has 24h of storage.
+
+
+Demo Code
+=========
+
+To show the capabilities, here is an example of a recording of 100s:
+
+![Demo Recording](demo.png)
+
+During the test, I held my breath between for about 20s. Can you see where?
+You can also see the breathing cycles.
+ 
 
 Quirks
 ======

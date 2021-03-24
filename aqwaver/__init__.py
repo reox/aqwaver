@@ -36,7 +36,7 @@ class AQWave:
     TYPE_UNKNOWN = 0x0b  # just a guess that this codes for "unknown command"
     TYPE_OK = 0x0c  # ??? does this really codes for OK?
     TYPE_RECORDING_DATA = 0x0f
-    TYPE_RECORDING_SETTINGS_2 = 0x12
+    TYPE_RECORDING_SETTINGS_2 = 0x12  # Contains the time setting when the recording started
 
     def __init__(self, port: str):
         """
@@ -176,6 +176,7 @@ class AQWave:
                     # the original software sends a Keepalive every 60 packets,
                     # i.e. every second
                     self._send_command(self.CMD_KEEP_ALIVE)
+                    # Command does not return anything
                 i += 1
         except StopIteration:
             pass
