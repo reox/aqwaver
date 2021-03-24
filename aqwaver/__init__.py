@@ -2,6 +2,8 @@ import serial
 from typing import Union, List, Tuple
 from collections import namedtuple
 
+import warnings
+
 from datetime import time
 
 _info = namedtuple('DeviceInfo', ['device', 'product', 'manufacturer', 'id_1', 'id_2'])
@@ -103,8 +105,9 @@ class AQWave:
         # The field contains the number of individual values
         # as we have two values (SpO2 and HR) we need to divide by two...
         # We are actually not sure if this is actually an uint32, however there should be
-        # a maximum of 1439*60*2=172680 (i.e. a full day of recording) which would need 18 bits
+        # a maximum of 24*60*60*2=172800 (i.e. a full day of recording) which would need 18 bits
         # to store.
+        # TODO: actually test if the device will say "out of memory" after 24h of recording
         return (data[2] | data[3] << 8 | data[4] << 16 | data[5] << 24) >> 1
 
     def get_recording_time(self):
@@ -119,6 +122,70 @@ class AQWave:
         # data[2] ... hours
         # data[3] ... minutes
         return time(hour=data[2], minute=data[3])
+
+    def is_recording(self) -> bool:
+        """Checks if the device is currently recording"""
+        self._send_command(self.CMD_RECORDING_DATA)
+        # Just read the first four bytes and discard the rest of the buffer
+        type_, _ = self._decode(self.__serial.read(4))
+        self.__serial.reset_input_buffer()
+        # The recording_data command returns unknown type if in recording
+        return type_ == self.TYPE_UNKNOWN
+
+    def data(self, n) -> Tuple[int, int, int]:
+        """Yield data from the device
+
+        The tuple is: (pulse, ppg_value, smooth_ppg_value, heart_rate, sp02)
+
+        pulse gives a signal if a heartbeat is detected.
+        The signal will be around 64 if a heartbeat is detected,
+        128 if no finger is detected and 0 if there is no beat.
+        Because we are not sure what the actual value is, the following check
+        should probably work: x < 32 --> no beat, x <= 32 <= 96 --> beat, x > 96 --> finger out
+
+        There are two PPG values, where the first one has a higher magnitude
+        than the second.
+
+        Data is send by the device about every 1/60s, i.e. 60 times per second.
+
+        ppg_value is [0, 255] (maybe the value is actually always between 0 and 128?)
+        other_ppg_value is [0, 255] (maybe this is always 0 to 32?)
+        heart_rate is [0, 255]
+        sp02 is [0, 255] (actually only [0, 100])
+
+        The original source code only uses the items 1, 3, 4 from the data array
+        """
+        try:
+            self._send_command(self.CMD_START)
+            i = 0
+            while i < n:
+                type_, data = self._decode(self.__serial.read(9))
+                if type_ != self.TYPE_DATA:
+                    raise AQWaveException(f"Returned Datatype was not DATA but {type_}")
+                #                   Value if no finger present
+                # 0 ... Pulse       128
+                # 1 ... PPG         64
+                # 2 ... Another PPG 21
+                # 3 ... Heart Rate  0
+                # 4 ... SpO2        0
+                # data[5] and data[6] are always (?) 255
+                yield data[:5]
+
+                if i > 0 and i % 60 == 0:
+                    # While a single start command usually sends around 1700 packages,
+                    # the original software sends a Keepalive every 60 packets,
+                    # i.e. every second
+                    self._send_command(self.CMD_KEEP_ALIVE)
+                i += 1
+        except StopIteration:
+            pass
+        finally:
+            self._send_command(self.CMD_STOP)
+            type_, _ = self._decode(self.__serial.read(2))
+            if type_ != self.TYPE_OK:
+                warnings.warn(f"Data stream was stopped but return type was not OK but {type_}")
+            return
+
 
     def _send_command(self, command):
         """Send a command to the device"""
