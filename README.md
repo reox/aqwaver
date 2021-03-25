@@ -26,6 +26,28 @@ It would be interesting to have write capabilities on the device, and I guess th
 This python library shows the basic functionality, which is partially created from the original source code and
 partially reverse-engineered.
 
+Other Devices?
+--------------
+
+There seems to be a pretty much identical device called [Contec CMS50E](https://www.contecmed.com/index.php?page=shop.product_details&flypage=flypage.tpl&product_id=186&category_id=7&option=com_virtuemart&Itemid=592).
+There are also devices like [CMS50E-BT](https://www.contecmed.com/index.php?page=shop.product_details&flypage=flypage.tpl&product_id=242&category_id=27&option=com_virtuemart&Itemid=618) and 
+[CMS50EW](https://www.contecmed.com/index.php?page=shop.product_details&flypage=flypage.tpl&product_id=118&category_id=27&option=com_virtuemart&Itemid=618)
+Contec seems to be Chinese company - so the question is if ReFleX wireless bought the Contec product
+and re-labeled it, or if Contec re-labeld the ReFleX one...
+According to their websites, Contec was founded in 1996 and ReFleX in ~2011.
+According to the FCC Website, the [CMS50EW](https://fccid.io/2ABOGCMS50EW) was registered in 2014.
+But now comes the interesting part: On the PCB of the ReFleX device, you can read the part number
+for the PCBs, which is `CM.....`. CM like Contec Medical?
+
+Well... Looking around for these CMS50x devices, I found a ton of existing python code:
+
+* https://github.com/atbrask/CMS50Dplus
+* https://github.com/tobac/cms50ew
+
+From the dates I would guess that maybe ReFleX wireless asked Contec Medical to build the device,
+which then in turn sold the device under another name two years later.
+
+
 Demo Code
 =========
 
@@ -60,7 +82,7 @@ Device Specs
 * Sampling Rate: 1/60 per second
 * Recording Sampling Rate: ~1Hz
 * PPG Resolution: 8bit (maybe only 4 bit?)
-* USB-Serial Interface: via CP210x
+* USB-Serial Interface: via CP210x (The cable is called "HGP0014")
 * Bluetooth-Serial Interface: Device Name `SpO2`, Pairing Key `7762`
   The device in the AQWave is a  BF10-A by Shenzhen Lansefeiwu Technology Co., Ltd. ([FCC Information](https://fccid.io/N8DBF10-A)).
 
