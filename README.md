@@ -26,8 +26,33 @@ It would be interesting to have write capabilities on the device, and I guess th
 This python library shows the basic functionality, which is partially created from the original source code and
 partially reverse-engineered.
 
+Demo Code
+=========
+
+To show the capabilities, here is an example of a recording of 60s:
+
+![Demo Recording](demo.png)
+
+During the test, I held my breath for about 20s. Can you see where?
+I also did a Valsalva maneuver for about 5s. Can you also see the location?
+You can also see the breathing cycles (which is a bit weird because of the two tests I did).
+
+This demo shows also the limitations of the device. Note the lost pulse between 45 and 50s.
+No - I did not had arrythmia ;)
+Note, that the PPG dropped to zero at the same time. The reason is that during the Valsalva maneuver,
+the blood pressure increases - you can clearly see this in the PPG signal.
+But when the air is released from the lungs, the pressure decreases again. However,
+the sensor is not giving an absolute signal but a relative one and is probably constantly re-calibrating
+itself. Therefore the pressure difference was so big and the PPG signal was lost.
+
+However, the increase in heart rate during breath holding as well as the decline in oxygen saturation is
+clearly visible and matches the description in textbooks, of being "in the range of 20s" [0].
+
+(holding breath: 10-30s, Valsalva: 40-45s)
+ 
+
 Device Specs
-------------
+============
 
 * Based on TI MSP430F247
 * OLED Solomon Systech SSD1351U
@@ -135,7 +160,7 @@ Command | Response | Number of Packages | Comment
 `0xa4`    | Package Type `0x08`     | 1 (8 bytes)     | Number of Recorded Values (See description)
 `0xa5`    | Package Type `0x07`, `0x0c`    | 2 (8 bytes each)        | Recording Time Setting
 `0xa6`    | Package Type `0x0f`          | n (8 bytes each)      | Recorded Data (See description; During Recording, returns Error package)
-`0xa7`    | `0x0c 0x80`   | | ??? - would not stop the recording, but related?
+`0xa7`    | `0x0c 0x80`   | | Stops the transmission of recorded packages
 `0xa8`    | Package Type `0x02`     | 2 (9 bytes each)              | Seems to print the Device Name and type: First Package AQWave, second Package ÿRX101
 `0xa9`    | Package Type `0x03`     | 1 (9 bytes)              | Get Device Manufacturer 'ReFleX\x00'
 `0xaa`    | Package Type `0x04`     | 1 (9 bytes)              | Prints 'user' - also some kind of user id?
@@ -169,6 +194,8 @@ Reading Data
 
 The device will spill out packages of data after being asked.
 I found that it will send about 1790 packages and then stops automatically.
+Maybe the timeout is set to exactly 30s but with jitter and overhead you end up with rougly 10 packets less.
+Because sometimes the device will send 1791 or 1786.
 To still retrieve packages, there is a "keep alive" command.
 The original software issues this command every 60 packages, i.e., every second.
 
@@ -186,24 +213,20 @@ Each tuple corresponds to a second.
 
 You can ask the device how many values (not tuples!) it has stored and thus calculate the number of bytes
 to read.
+Note that the device will be blocked while recorded data is downloaded.
+For a full day of recording, the download takes about 25s.
+Because you might just want to check the command, if the device is currently recording,
+there seems to be another command to abort the download.
+However, after the command is send, you might receive 2 to 3 more data packages before the stream ends.
 
 On the device, you can also set the time when the recorded started. The idea here is,
 that the patient will set the time, record the data and then go to the PC and retrieve the sample.
 In order to know when the recording has started, you set the time manually.
 
 According to the manual, the device has 24h of storage.
+This was tested and is true, after 24h of recording, the device will display a message that the memory
+is full and will then have exactly 86400 seconds of recording stored.
 
-
-Demo Code
-=========
-
-To show the capabilities, here is an example of a recording of 100s:
-
-![Demo Recording](demo.png)
-
-During the test, I held my breath between for about 20s. Can you see where?
-You can also see the breathing cycles.
- 
 
 Quirks
 ======
@@ -217,3 +240,10 @@ However, I found the following quirks:
   The PPG line would always show the last value, but would still render. It worked again by sending several commands. Unfortunately, I can not say which one unblocked it and which one froze it.
 * When activating the recording while bluetooth is on, the settings menu show it off but when clicking on it it shows as on again
 * The battery indicator shows always the same level
+
+
+References
+==========
+
+[0] Kaniusas, E.: Biomedical Signals and Sensors I (2012), Springer-Verlag Berlin Heidelberg
+DOI: [10.1007/978-3-642-24843-6](https://dx.doi.org/10.1007/978-3-642-24843-6)
