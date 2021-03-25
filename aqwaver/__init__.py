@@ -27,7 +27,7 @@ import datetime
 import time
 
 _info = namedtuple('DeviceInfo', ['device', 'product', 'manufacturer', 'id_1', 'id_2'])
-_data = namedtuple('Data', ['time', 'pulse', 'ppg', 'ppg_alt', 'hr', 'spo2'])
+_data = namedtuple('Data', ['time', 'ppg', 'hr', 'spo2', 'finger_out', 'pulse', 'bar', 'searching'])
 
 
 class AQWaveException(Exception):
@@ -104,6 +104,7 @@ class AQWave:
             return
         self.__serial.open()
         self.__serial.reset_input_buffer()
+        self._send_command(self.CMD_STOP)
 
     def close(self):
         self.__serial.close()
@@ -229,14 +230,40 @@ class AQWave:
                 type_, data = self._decode(self.__serial.read(9))
                 if type_ != self.TYPE_DATA:
                     raise AQWaveException(f"Returned Datatype was not DATA but {type_}")
-                #                       Value if no finger present
-                # 0 ... Pulse Signal    128
-                # 1 ... PPG             64
-                # 2 ... Another PPG     21
-                # 3 ... Heart Rate      0
-                # 4 ... SpO2            0
                 # data[5] and data[6] are always (?) 255
-                yield _data(time.time(), *data[:5])
+                flag_1, ppg, flag_2, hr, sp, _, _ = data
+                # Flag1:
+                # bit| Function
+                # ---+-----------------
+                # 7  | Finger Out
+                # 6  | Beep / Pulse
+                # 5  | always 0 ?
+                # 4  | sometimes active, seems to be the searching flag?
+                # 3  | always 0 ?
+                # 2  | always 0 ?
+                # 1  | always 0 ?
+                # 0  | always 0 ?
+                #
+                # Flag2:
+                # bit| Function
+                # ---+-----------------
+                # 7  | always 0 ?
+                # 6  | always 0 ?
+                # 5  | always 0 ?
+                # 4  | always 1 ?
+                # 3  | bar
+                # 2  | bar
+                # 1  | bar
+                # 0  | bar
+                #
+                # The bar is basically a 4 bit version of the full ppg signal
+
+                finger_out = (flag_1 & (1 << 7)) > 0  # For this model, it seems to be bit7
+                beep = (flag_1 & (1 << 6)) > 0  # clearly
+                searching = (flag_1 & (1 << 4)) > 0  # ??? Not sure
+                bar = flag_2 & 0x0f
+
+                yield _data(time.time(), ppg, hr, sp, finger_out, beep, bar, searching)
 
                 if i % 60 == 0:
                     # While a single start command usually sends around 1700 packages,
